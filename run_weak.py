@@ -2,7 +2,7 @@ import os
 import sys
 import getpass
 
-rootdir = "/" # Include path to repo
+rootdir = "/home/saisan/dev/upmem-2023.2.0-Linux-x86_64/prim-benchmarks" # Include path to repo
 
 applications = {"VA"       : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/host_code -w 0 -e 1 -i #elements -x 0"],
                 "GEMV"     : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/gemv_host -m #elements -n 2048"],
@@ -19,6 +19,7 @@ applications = {"VA"       : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/ho
                 "RED"      : ["NR_DPUS=X NR_TASKLETS=Y BL=Z VERSION=SINGLE make all", "./bin/host_code -w 0 -e 1 -i #elements -x 0"],
                 "SCAN-SSA" : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/host_code -w 0 -e 1 -i #elements -x 0"],
                 "SCAN-RSS" : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/host_code -w 0 -e 1 -i #elements -x 0"],
+                "QLEARN"   : ["NR_DPUS=X NR_TASKLETS=Y BL=Z make all", "./bin/qlearn_host -w 0 -e 1"],
                 "TRNS"     : ["NR_DPUS=X NR_TASKLETS=Y make all", "./bin/host_code -w 0 -e 1 -p #elements -o 12288 -x 0"],}
 
 def run(app_name):
@@ -39,6 +40,8 @@ def run(app_name):
         size = 262144
     if(app_name == "MLP"):
         size = 1024
+    if(app_name == "QLEARN"):
+        size = 1
     if(app_name == "RED"):
         size = 6553600
     if(app_name == "TRNS"):
