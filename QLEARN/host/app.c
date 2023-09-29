@@ -21,17 +21,30 @@
 #include "../support/common.h"
 #include "../support/timer.h"
 #include "../support/params.h"
+#include "../support/csv_reader.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
 #define DPU_BINARY "./bin/qlearn_dpu"
 #endif
 
-// Create input arrays
-static void init_data() {
-  //TODO 
-  return;
-}
+
+#define NUM_STATES 50
+#define NUM_ACTIONS 10
+#define LEARNING_RATE 0.1
+#define DISCOUNT_FACTOR 0.9
+#define NUM_EPISODES 50
+
+// Define Q-table
+double Q[NUM_STATES][NUM_ACTIONS] = {0};
+
+// Define experiences (state, action, reward, next_state)
+typedef struct {
+    int state;
+    int action;
+    double reward;
+    int next_state;
+} Experience;
 
 // Define constants
 #define NUM_STATES 6
@@ -40,82 +53,65 @@ static void init_data() {
 #define DISCOUNT_FACTOR 0.9
 #define MAX_EPISODES 1000
 #define MAX_STEPS 100
-// Define actions
-enum Actions {
-    UP,
-    DOWN,
-    LEFT,
-    RIGHT
-};
 
-// Define the Q-table
-double Q[NUM_STATES][NUM_ACTIONS];
+char **experiences_str;
+int count_col=0;
 
-// Define the rewards matrix
-int rewards[NUM_STATES][NUM_ACTIONS] = {
-    {0, -1, -1, -1},  // State 0
-    {-1, -1, -1, 10}, // State 1
-    {-1, -1, -1, -1}, // State 2
-    {-1, -1, -1, -1}, // State 3
-    {-1, -1, -1, -1}, // State 4
-    {-1, -1, -1, 0}   // State 5 (Goal)
-};
+Experience experiences[NUM_EPISODES];
 
-// Helper function to choose an action based on epsilon-greedy policy
-int chooseAction(int state, double epsilon) {
-    static int exploration_count = 0;
-    if ((double)exploration_count / MAX_STEPS < epsilon) {
-        // Deterministic exploration: choose an action sequentially
-        int action = exploration_count % NUM_ACTIONS;
-        exploration_count++;
-        return action;
-    } else {
-        int bestAction = 0;
+// Create input arrays
+static void init_data() {
+   experiences_str = read_csv("/home/saisan/dev/upmem-2023.2.0-Linux-x86_64/prim-benchmarks/QLEARN/dummy.csv",&count_col);
+   Experience exp;
+
+   for (int i=0; i < NUM_EPISODES; i++) {
+    exp=experiences[i];
+     exp.state = atoi(experiences_str[0]);
+    exp.action = atoi(experiences_str[1]);
+    exp.reward = atof(experiences_str[2]);
+    exp.next_state = atoi(experiences_str[3]);
+   }
+
+
+
+  return;
+}
+// Q-learning update function for a batch of experiences
+void updateQBatch() {
+    for (int episode = 0; episode < NUM_EPISODES; ++episode) {
+        int state = experiences[episode].state;
+        int action = experiences[episode].action;
+        double reward = experiences[episode].reward;
+        int next_state = experiences[episode].next_state;
+
+        double max_next_q = Q[next_state][0];
         for (int a = 1; a < NUM_ACTIONS; ++a) {
-            if (Q[state][a] > Q[state][bestAction]) {
-                bestAction = a; // Exploitation: choose the action with the highest Q-value
+            if (Q[next_state][a] > max_next_q) {
+                max_next_q = Q[next_state][a];
             }
         }
-        return bestAction;
+
+        // Compute the Q-value update for this experience (but don't update the Q-table yet)
+        double q_update = LEARNING_RATE * (reward + DISCOUNT_FACTOR * max_next_q - Q[state][action]);
+
+        // Accumulate Q-value updates (offline)
+        Q[state][action] += q_update;
     }
 }
 
-// Q-learning algorithm
-void qLearning() {
-    for (int episode = 0; episode < MAX_EPISODES; ++episode) {
-        int state = 0; // Start in state 0
-        int steps = 0;
-
-        while (state != 5 && steps < MAX_STEPS) { // Continue until goal is reached or max steps
-            int action = chooseAction(state, 0.1); // Epsilon-greedy action selection
-
-            // Perform the chosen action
-            int next_state = action;
-            int reward = rewards[state][action];
-
-            // Update the Q-value using the Q-learning update rule
-            Q[state][action] = Q[state][action] + LEARNING_RATE * (reward + DISCOUNT_FACTOR * Q[next_state][chooseAction(next_state, 0.0)] - Q[state][action]);
-
-            state = next_state;
-            steps++;
-        }
-    }
-}
-
-// Compute output in the host
-static void qlearn_host() {
-
-    qLearning();
+static int qlearn_host() {
+    // Perform offline Q-learning by updating the Q-table once after processing the entire batch
+    updateQBatch();
 
     // Print the learned Q-table
-    printf("Learned Q-Table:\n");
+    printf("Learned Q-table:\n");
     for (int s = 0; s < NUM_STATES; ++s) {
-        printf("State %d: ", s);
         for (int a = 0; a < NUM_ACTIONS; ++a) {
-            printf("%.2f  ", Q[s][a]);
+            printf("Q[%d][%d] = %.2f   ", s, a, Q[s][a]);
         }
         printf("\n");
     }
+
 
     return 0;
 }
@@ -155,8 +151,8 @@ uint32_t n_size_pad = n_size;
 	// Timer
 	Timer timer;
 	i = 0;
-	DPU_FOREACH(dpu_set, dpu, i) {
-		/*
+/*	DPU_FOREACH(dpu_set, dpu, i) {
+		
     uint32_t rows_per_dpu;
 		uint32_t prev_rows_dpu = 0;
 		uint32_t chunks = m_size / nr_of_dpus;
@@ -189,8 +185,10 @@ uint32_t n_size_pad = n_size;
 		input_args[i].n_size_pad = n_size_pad;
 		input_args[i].nr_rows = rows_per_dpu;
 	}
-*/
+
 }
+*/
+
 /*
 	A = (T**)malloc(NUM_LAYERS * sizeof(T*));
 	for(l = 0; l < NUM_LAYERS; l++)
@@ -204,6 +202,7 @@ uint32_t n_size_pad = n_size;
 	B_tmp = malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 */
 	init_data();
+
 
 	// Compute output on CPU (performance comparison and verification purposes)
 	start(&timer, 0, 0);
@@ -388,6 +387,6 @@ bool status = true;
 #if ENERGY
 	DPU_ASSERT(dpu_probe_deinit(&probe));
 #endif
-
+   free_csv_memory(experiences_str, count_col);
 	return status ? 0 : -1;
 }
