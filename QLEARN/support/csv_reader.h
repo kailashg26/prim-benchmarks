@@ -46,9 +46,10 @@ char** parse_line(const char *line, int *count) {
     return fields;
 }
 
- char** read_csv(char* filename, int* count) {
+ char*** read_csv(char* filename, int* count, int num_records) {
     FILE *file;
     char buffer[4096];
+    char ***table = NULL;
 
     // Open the file in read mode
     file = fopen(filename, "r");
@@ -56,7 +57,9 @@ char** parse_line(const char *line, int *count) {
         fprintf(stderr, "Could not open file %s\n", filename);
         return NULL;
     }
+    int i = 0;
 
+    table = (char ***) malloc(sizeof(char **)* num_records);
     // Read lines from the file
     while (fgets(buffer, sizeof(buffer), file)) {
         // Remove the trailing newline character, if present
@@ -65,14 +68,15 @@ char** parse_line(const char *line, int *count) {
             buffer[--len] = '\0';
         }
 
-        char **fields = parse_line(buffer, count);
+        table[i++] = parse_line(buffer, count);
 
+        if (i == num_records) break;
     }
 
     // Close the file
     fclose(file);
 
-    return 0;
+    return table;
 }
 
 void free_csv_memory(char** fields, int count)

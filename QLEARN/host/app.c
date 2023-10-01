@@ -54,22 +54,22 @@ typedef struct {
 #define MAX_EPISODES 1000
 #define MAX_STEPS 100
 
-char **experiences_str;
+char ***experiences_str;
 int count_col=0;
 
 Experience experiences[NUM_EPISODES];
 
 // Create input arrays
-static void init_data() {
-   experiences_str = read_csv("/home/saisan/dev/upmem-2023.2.0-Linux-x86_64/prim-benchmarks/QLEARN/dummy.csv",&count_col);
+static void init_data( char* file_name ) {
+   experiences_str = read_csv("/home/saisan/dummy.csv",&count_col, 50);
    Experience exp;
 
    for (int i=0; i < NUM_EPISODES; i++) {
-    exp=experiences[i];
-     exp.state = atoi(experiences_str[0]);
-    exp.action = atoi(experiences_str[1]);
-    exp.reward = atof(experiences_str[2]);
-    exp.next_state = atoi(experiences_str[3]);
+     exp=experiences[i];
+     exp.state = atoi(experiences_str[i][0]);
+     exp.action = atoi(experiences_str[i][1]);
+     exp.reward = atof(experiences_str[i][2]);
+     exp.next_state = atoi(experiences_str[i][3]);
    }
 
 
@@ -201,7 +201,7 @@ uint32_t n_size_pad = n_size;
 	C_dpu = malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 	B_tmp = malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 */
-	init_data();
+	init_data(p.file_name);
 
 
 	// Compute output on CPU (performance comparison and verification purposes)
